@@ -1,4 +1,0 @@
-geopandas
-numpy
-pandas
-rasterio
