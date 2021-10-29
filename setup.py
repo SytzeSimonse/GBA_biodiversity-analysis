@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='example',
+    name='UAc_GBA_Project',
     version='0.1.0',
     packages=find_packages(include=['sample', 'sample.*']),
     install_requires=[
@@ -12,7 +12,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'snek = sample.example:main'
+            'tile = sample.tiling:main'
             ],
     },
     setup_requires=[
