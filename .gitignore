@@ -3,6 +3,7 @@
 
 *.egg-info/
 *.egg
+/.eggs
 
 __pycache__/
 *.pyc
