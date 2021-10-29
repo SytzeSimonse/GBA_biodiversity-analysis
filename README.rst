@@ -1,8 +1,6 @@
-This is a normal text paragraph. The next paragraph is a code sample::
+How to use
+===============
 
-   It is not processed in any way, except
-   that the indentation is removed.
-
-   It can span multiple lines.
-
-This is a normal text paragraph again.
+This script is intended to be used for tiling multiband raster data. Requirements:
+* The first band is for landuse;
+* The other bands are thematic rasters (e.g. climatic variables).
