@@ -3,7 +3,7 @@ Module for manipulating rasters, including adding padding to and splitting raste
 """
 import rasterio as rio
 from itertools import product
-from rasterio import windows
+from rasterio import band, windows
 
 import numpy as np
 
@@ -11,45 +11,6 @@ import math
 import os
 
 import rasterio
-
-def determine_padding(raster_fpath, dimension, verbose = True) -> list:
-    # Open raster
-    raster = rio.open(raster_fpath)
-
-    # Extract spatial resolution of raster
-    spatial_resolution = get_spatial_resolution_raster(raster_fpath, verbose = True)
-
-    # Calculate tile size (in pixels)
-    tile_size = int(dimension / spatial_resolution)
-    print("Tile size: {}".format(tile_size))
-
-    new_raster_size_x = round(raster.width, tile_size)
-    
-    # Calculate number of tiles in width and length
-    num_tiles_x = math.ceil(raster.width / tile_size)
-    num_tiles_y = math.ceil(raster.height / tile_size)
-
-    if verbose:
-        print("With a dimension of {}, you can fit (x,y) ({},{}) tiles.".format(
-            dimension, num_tiles_x, num_tiles_y
-        ))
-
-    # Calculate size of raster to fit in entire tiles (and not stay with leftover pixels)
-    new_raster_size_x = raster.width + (tile_size - raster.width % tile_size)
-    new_raster_size_y = raster.height + (tile_size - raster.height % tile_size)
-    
-    if verbose:
-        print("New raster size (x,y): {},{}".format(new_raster_size_x, new_raster_size_y))
-
-    # Calculate padding 
-    padding_x = int((new_raster_size_x - raster.width) / 2)
-    padding_y = int((new_raster_size_y - raster.height) / 2)
-
-    if verbose:
-        print("In width: {} -> {}".format(raster.width, raster.width + padding_x) * 2)
-        print("In height: {} -> {}".format(raster.height, raster.height + padding_y * 2))
-
-    return (padding_x, padding_y)
 
 def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbose = True):
     """Adds a padding to the raster, based on the dimension of the tiles.
@@ -87,7 +48,11 @@ def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbo
 
     if verbose:
         print("The raster width will be increased from {} to {} pixels.".format(raster.width, new_raster_width))
-        print("The raster height will be increased from {} to {} pixels.".format(raster.height, new_raster_height))
+        print("The raster height will be increased from {} to {} pixels.\n".format(raster.height, new_raster_height))
+
+    # Determine padding
+    padding_x = int(new_raster_width - raster.width)
+    padding_y = int(new_raster_height - raster.height)
 
     # Update values based on padding
     out_meta.update({
@@ -95,20 +60,19 @@ def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbo
         'height': new_raster_height
     })
 
-    # Determine padding
-    padding = determine_padding(raster_in, dimension)
-
     # Loop through raster bands
     for band_no in range(1, raster.count + 1):
+        print("Processing band no. {}...".format(band_no))
+
         # Read band
         raster_band = raster.read(band_no)
 
         # Add padding
         padded_raster_band = np.pad(
             raster_band, 
-            pad_width = determine_padding(raster_in), 
+            pad_width = ((0, padding_y), (0, padding_x)), 
             mode = 'constant',
-            constant_values = (0))
+            constant_values = 0)
 
         # Append padded raster band to list
         padded_bands.append(padded_raster_band)
@@ -139,10 +103,6 @@ def get_spatial_resolution_raster(raster_fpath, verbose = False) -> float:
 
         return spatial_resolution
 
-
-
-
-
 def get_tiles(ds, width = 256, height = 256):
     nols, nrows = ds.meta['width'], ds.meta['height']
     offsets = product(range(0, nols, width), range(0, nrows, height))
@@ -164,6 +124,12 @@ def tile_raster(raster_in, raster_out, dimension: int = 5000, verbose = True):
         raise FileNotFoundError(
             "The file '{}' could not be found.".format(raster_in)
         )
+
+    # CHeck if output folder exists
+    if not os.path.exists(raster_out):
+        if verbose:
+            print("Creating new folder for tiles...")
+        os.mkdir("data/intermediate/tiles")
 
     # Open raster
     with rio.open(raster_in) as raster:
@@ -193,6 +159,6 @@ def tile_raster(raster_in, raster_out, dimension: int = 5000, verbose = True):
             meta['transform'] = transform
             meta['width'], meta['height'] = window.width, window.height
             output_filename = 'tile_{}-{}.tif'
-            outpath = os.path.join(raster_out,output_filename.format(int(window.col_off), int(window.row_off)))
+            outpath = os.path.join(raster_out, output_filename.format(int(window.col_off), int(window.row_off)))
             with rio.open(outpath, 'w', **meta) as outds:
                 outds.write(raster.read(window = window))
