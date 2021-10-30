@@ -9,17 +9,19 @@ This script is intended to be used for tiling multiband raster data. Requirement
 Folder structure
 ===============
 
-This is the folder structure::
+This is the folder structure
 
-- data/
-    + intermediate/
-    + raw/
-- docs/
-- figures/
-- output/
-- sample/
-- tests/
-- README.rst 
-- requirements.txt
-- setup.cfg
-- setup.py
+::
+
+    - data/
+        + intermediate/
+        + raw/
+    - docs/
+    - figures/
+    - output/
+    - sample/
+    - tests/
+    - README.rst 
+    - requirements.txt
+    - setup.cfg
+    - setup.py
