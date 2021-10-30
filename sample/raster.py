@@ -162,3 +162,15 @@ def tile_raster(raster_in, raster_out, dimension: int = 5000, verbose = True):
             outpath = os.path.join(raster_out, output_filename.format(int(window.col_off), int(window.row_off)))
             with rio.open(outpath, 'w', **meta) as outds:
                 outds.write(raster.read(window = window))
+
+def delete_single_value_tiles(tiles_folder: str) -> None:
+    # Loop through tiles
+    for tile in os.listdir(tiles_folder):
+        f = os.path.join(tiles_folder, tile)
+        if os.path.isfile(f):
+            raster = rio.open(f)
+            raster_band = raster.read(1)
+            
+            # If all values are the same, remove file
+            if (np.all(raster_band == raster_band[0])):
+                os.remove(f)
