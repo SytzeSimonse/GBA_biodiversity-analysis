@@ -1,6 +1,6 @@
 import os
 
-def find_landuse_classes() -> dict:
+def read_land_use_classes(lut_fpath) -> dict:
     """Finds a .txt file in the data folder to extract landuse classes from.
 
     Raises:
@@ -9,15 +9,12 @@ def find_landuse_classes() -> dict:
     Returns:
         dict: landuse class names.
     """
-    # Find .txt file with landuse classes
-    classes_file = 'data/raw/classes.txt'
-
-    if os.path.exists(classes_file):
+    if os.path.exists(lut_fpath):
         # Create emptydictionary for landuse classes
         landuse_class_dict = {}
 
         # Read .txt file
-        with open(classes_file) as f:
+        with open(lut_fpath) as f:
             lines = f.read().splitlines()
             print("You have {} landuse classes.".format(len(lines)))
 
