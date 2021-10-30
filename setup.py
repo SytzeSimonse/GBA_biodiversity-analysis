@@ -8,11 +8,14 @@ setup(
         'numpy',
         'rasterio',
         'geopandas',
-        'pandas'
+        'pandas',
+        'rasterstats',
+        'matplotlib'
     ],
     entry_points={
         'console_scripts': [
-            'tile = sample.tiling:main'
+            'tile = sample.tiling:main',
+            'aggregate = sample.aggregating:main'
             ],
     },
     setup_requires=[
