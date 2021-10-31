@@ -1,4 +1,4 @@
-from re import VERBOSE
+from re import M, VERBOSE
 import rasterio as rio
 import numpy as np
 
@@ -51,10 +51,7 @@ def calculate_raster_statistics(tile_fpath: str, band_no: int) -> list:
 
     # Reading band
     band = tile.read(band_no)
-
-    show(band)
-
-    return
+    band_masked = np.ma.masked_array(band, mask=(band == -3.4+38))
 
     # List of statistics to include
     stats_list = ['mean', 'median', 'range', 'maximum', 'minimum', 'coefficient_of_variation']
@@ -65,17 +62,14 @@ def calculate_raster_statistics(tile_fpath: str, band_no: int) -> list:
     }
 
     # Calculate statistics (using NumPy)
-    print(band)
-    stats['mean'] = np.average(band)
-    stats['median'] = np.median(band)
-    stats['range'] = abs(np.max(band) - np.min(band)) # TODO: Direct function?
-    stats['maximum'] = np.max(band)
-    stats['minimum'] = np.min(band)
+    stats['mean'] = round(float(tile.tags(band_no)['STATISTICS_MEAN']), 2)
+    stats['minimum'] = round(float(tile.tags(band_no)['STATISTICS_MINIMUM']), 1)
+    stats['maximum'] = float(tile.tags(band_no)['STATISTICS_MAXIMUM'])
+    stats['range'] = abs(stats['maximum'] - stats['minimum'])
+    stats['median'] = np.median(band[band > stats['minimum']])
 
     # Define function to calculate cv
     #   SOURCE: https://www.statology.org/coefficient-of-variation-in-python/
-    cv = lambda x: np.std(x, ddof=1) / np.mean(x) * 100  
-
-    #stats['coefficient_of_variation'] = cv(band)
+    stats['coefficient_of_variation'] = round(float(tile.tags(band_no)['STATISTICS_MINIMUM']) / float(tile.tags(band_no)['STATISTICS_MEAN']) * 100, 2)  
 
     return stats
