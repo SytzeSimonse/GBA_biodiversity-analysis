@@ -7,7 +7,7 @@ def read_land_use_classes(lut_fpath) -> dict:
         FileNotFoundError: if file called 'classes.txt' is not found in data folder.
 
     Returns:
-        dict: landuse class names.
+        dict: land use number (key) and name (value) pairs.
     """
     if os.path.exists(lut_fpath):
         # Create emptydictionary for landuse classes
