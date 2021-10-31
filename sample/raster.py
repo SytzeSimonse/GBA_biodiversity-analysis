@@ -12,6 +12,10 @@ import os
 
 import rasterio
 
+from osgeo import gdal
+
+from sample.helpers import read_band_names
+
 def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbose = True):
     """Adds a padding to the raster, based on the dimension of the tiles.
 
@@ -164,13 +168,37 @@ def tile_raster(raster_in, raster_out, dimension: int = 5000, verbose = True):
                 outds.write(raster.read(window = window))
 
 def delete_single_value_tiles(tiles_folder: str) -> None:
+    """Deletes raster files with only a single-value.
+
+    Args:
+        tiles_folder (str): Folder of rasters.
+    """
     # Loop through tiles
     for tile in os.listdir(tiles_folder):
+        # Combine paths of input folder and raster filename
         f = os.path.join(tiles_folder, tile)
+
+        # If tile exists ...
         if os.path.isfile(f):
+
+            # Open raster and read band
             raster = rio.open(f)
             raster_band = raster.read(1)
             
             # If all values are the same, remove file
             if (np.all(raster_band == raster_band[0])):
                 os.remove(f)
+
+def set_band_descriptions(filepath: str, bands_txt: str) -> None:
+    """Sets descriptions of raster bands.
+
+    Args:
+        filepath (str): Filepath of raster.
+        bands_txt (str): Filepath of .txt file with band names.
+    """
+    ds = gdal.Open(filepath, gdal.GA_Update)
+    bands = read_band_names(bands_txt)
+    for band in range(1, len(bands)+1):
+        rb = ds.GetRasterBand(band)
+        rb.SetDescription(bands[band - 1])
+    del ds

@@ -30,3 +30,22 @@ def read_land_use_classes(lut_fpath) -> dict:
             "You need a .txt file with the land use classes."
         )
 
+def read_band_names(band_names_fpath: str) -> list:
+    if os.path.exists(band_names_fpath):
+        # Create empty list for band names
+        band_names = []
+
+        # Read .txt file
+        with open(band_names_fpath) as f:
+            lines = f.read().splitlines()
+            print("You have {} band names.".format(len(lines)))
+
+            # Loop through lines
+            for line in lines:
+                band_names.append(line)
+
+        return band_names
+    else:
+        raise FileNotFoundError(
+            "You need a .txt file with the band names."
+        )

@@ -10,12 +10,14 @@ setup(
         'geopandas',
         'pandas',
         'rasterstats',
-        'matplotlib'
+        'matplotlib',
+        'gdal'
     ],
     entry_points={
         'console_scripts': [
             'tile = sample.tiling:main',
-            'aggregate = sample.aggregating:main'
+            'aggregate = sample.aggregating:main',
+            'name_bands = sample.naming_bands:main' 
             ],
     },
     setup_requires=[
