@@ -3,8 +3,6 @@ import argparse
 from sample.raster import set_band_descriptions
 
 def main():
-    print("Command has been called!")
-
     # Set up argument parser
     parser = argparse.ArgumentParser(description = 'This command assigns names to the raster bands.')
 

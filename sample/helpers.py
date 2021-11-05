@@ -16,8 +16,7 @@ def read_land_use_classes(lut_fpath) -> dict:
         # Read .txt file
         with open(lut_fpath) as f:
             lines = f.read().splitlines()
-            print("You have {} landuse classes.".format(len(lines)))
-
+            
             # Loop through lines
             for line in lines:
                 landuse_class = line.split('=')[0]

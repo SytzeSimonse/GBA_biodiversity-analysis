@@ -95,17 +95,24 @@ def get_spatial_resolution_raster(raster_fpath, verbose = False) -> float:
     Returns:
         float: Spatial resolution.
     """
-    # Open raster
-    with rio.open(raster_fpath) as inds:
-        spatial_resolution = inds.profile['transform'][0]
+    if os.path.exists(raster_fpath):
+        assert os.path.splitext(raster_fpath)[1] == '.tif', "The file should be .tif format."
 
-        if verbose:
-            print("The spatial resolution of '{}' is {} {}(s).".format(
-                raster_fpath,
-                spatial_resolution, 
-                inds.crs.linear_units))
+        # Open raster
+        with rio.open(raster_fpath) as inds:
+            spatial_resolution = inds.profile['transform'][0]
 
-        return spatial_resolution
+            if verbose:
+                print("The spatial resolution of '{}' is {} {}(s).".format(
+                    raster_fpath,
+                    spatial_resolution, 
+                    inds.crs.linear_units))
+
+            return spatial_resolution
+    else:
+        raise FileNotFoundError(
+            "The raster file does not exist."
+        )
 
 def get_tiles(ds, width = 256, height = 256):
     nols, nrows = ds.meta['width'], ds.meta['height']
@@ -189,14 +196,14 @@ def delete_single_value_tiles(tiles_folder: str) -> None:
             if (np.all(raster_band == raster_band[0])):
                 os.remove(f)
 
-def set_band_descriptions(filepath: str, bands_txt: str) -> None:
+def set_band_descriptions(raster_fpath: str, bands_txt: str) -> None:
     """Sets descriptions of raster bands.
 
     Args:
-        filepath (str): Filepath of raster.
+        raster_fpath (str): Filepath of raster.
         bands_txt (str): Filepath of .txt file with band names.
     """
-    ds = gdal.Open(filepath, gdal.GA_Update)
+    ds = gdal.Open(raster_fpath, gdal.GA_Update)
     bands = read_band_names(bands_txt)
     for band in range(1, len(bands)+1):
         rb = ds.GetRasterBand(band)

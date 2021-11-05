@@ -58,4 +58,4 @@ def calculate_point_statistics_from_raster(
     if 'median' in statistics:
         statistics['median'] = points_within_raster.iloc[:,-29:].median()
 
-    return 
+    return statistic_values
