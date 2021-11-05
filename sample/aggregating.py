@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 
 import pandas as pd
 
@@ -16,7 +17,6 @@ from sample.helpers import read_band_names
 from sample.pitfall import calculate_point_statistics_from_raster
 
 def main():
-    # Set up argument parser
     parser = argparse.ArgumentParser(description = 'This command converts the tiles into a usable dataset.')
 
     ## INPUT
@@ -52,22 +52,22 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Create columns for dataframe
-    col_names = read_band_names(args.band_names)
           
     # Create an empty dataframe
     aggregated_df = pd.DataFrame()
-
-    # Add column for ID
-    #aggregated_df['ID'] = None
 
     # For each tile:
     ## Get the land use pixel proportions, and;
     ## Get the statistics of the thematic variables.
 
+    # Sorting function
+    def sorted_alphanumeric(data):
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+        return sorted(data, key=alphanum_key)
+
     # Loop through all tiles in folder
-    tile_fnames = os.listdir(args.tiles)
+    tile_fnames = sorted_alphanumeric(os.listdir(args.tiles))
 
     for tile_no in tqdm(range(len(tile_fnames)), desc = "Processing tiles..."):
         print("TILE NO: {}".format(tile_no))
@@ -79,51 +79,44 @@ def main():
             # Read tile
             tile = rio.open(f)
 
-            # Get land use proportions
+            # Get land use proportions (as dict)
             land_use_pixel_counts = count_pixels_in_raster(f, lut_fpath = args.lookup_table, band_no = 1)
 
-            land_use_pixel_counts_series = pd.Series(land_use_pixel_counts)
-
             # Create combined dictionary for all thematic band statistics
-            combined_dict = {}
+            thematic_band_statistics_combined = {}
 
             # Loop through all the thematic variables
             for band in range(2, tile.count + 1):
+                # Calculate raster statistics for single band
                 thematic_var_statistics = calculate_raster_statistics(f, band)
-                combined_dict = {**combined_dict, **thematic_var_statistics}
 
-            combined_dict_series = pd.Series(combined_dict)
+                # Add calculated raster statistics to combined dictionary
+                thematic_band_statistics_combined = {**thematic_band_statistics_combined, **thematic_var_statistics}
 
-            # Adding point data            
+            # Calculate statistics of point data (as dict)          
             point_stats = calculate_point_statistics_from_raster(
                 raster_fpath = f,
                 point_csv_fpath = 'data/raw/pitfall_TER.csv'
             )
 
-            # Adding ID row
+            # Create an ID (as dict)
             identifier = {
                 'ID': int(tile_no) + 1
             }
-
-            print()
             
-            # Combine data (land use and thematic) in single row and convert to Pandas Series
-            combined = pd.Series({**identifier, **land_use_pixel_counts, **combined_dict, **point_stats}, name=f)
-
-            # series_list = [
-            #     land_use_pixel_counts_series,
-            #     combined_dict_series,
-            #     point_stats_series
-            # ]
-
-            # combined = pd.concat(series_list)
-            #print(combined)
+            # Combine the dictionaries as Series
+            combined = pd.Series({
+                **identifier, 
+                **land_use_pixel_counts, 
+                **thematic_band_statistics_combined, 
+                **point_stats}, name=f)
 
             # If this is the first row...
             if aggregated_df.empty:
                 # Initiate Pandas DataFrame
                 aggregated_df = pd.DataFrame([combined])
             else:
+                
                 aggregated_df = aggregated_df.append(combined, ignore_index=False)
 
             aggregated_df
