@@ -9,17 +9,24 @@ from geopandas import GeoDataFrame
 def calculate_point_statistics_from_raster(
     raster_fpath: str, 
     point_csv_fpath: str, 
-    statistics: list = ['mean']
+    statistics: list = ['mean', 'median']
     ) -> dict:
     """Calculates statistics of points found within a raster.
 
     Args:
         raster_fpath (str): Filepath to raster
         point_csv_fpath (str): Filepath to CSV with point data
-        statistics (list):
+        statistics (list): Statistics to include. Choose from: mean, min, max, median.
     Returns:
         dict: Statistic names and values
     """
+    # List of possible statistics
+    available_statistics = ['mean', 'min', 'max', 'median']
+    
+    # Check if any statistic is used that is not available
+    for statistic in statistics:
+        assert statistic in available_statistics, "'{}' is not an available option.".format(statistic)
+
     # Open tile
     raster = rio.open(raster_fpath)
 
@@ -41,21 +48,22 @@ def calculate_point_statistics_from_raster(
 
     # Create empty dictionary from statistic values
     statistic_values = {}
-
-    # List of possible statistics
-    available_statistics = ['mean', 'min', 'max', 'median', 'range']
-    
-    # ASSERTIONS
-    for statistic in statistics:
-        assert statistic in available_statistics, "'{}' is not an available option.".format(statistic)
     
     # Add statistics to list:
     ## MEAN
     if 'mean' in statistics:
-        statistics['mean'] = points_within_raster.iloc[:,-29:].mean()
+        statistic_values.update(points_within_raster.iloc[:,-29:].mean().add_prefix("mean_"))
 
     ## MEDIAN
     if 'median' in statistics:
-        statistics['median'] = points_within_raster.iloc[:,-29:].median()
+        statistic_values.update(points_within_raster.iloc[:,-29:].median().add_prefix("median_"))
+
+    ## MINIMUM
+    if 'minimum' in statistics:
+        statistic_values.update(points_within_raster.iloc[:,-29:].min().add_prefix("min_"))
+
+    ## MAXIMUM
+    if 'maximum' in statistics:
+        statistic_values.update(points_within_raster.iloc[:,-29:].max().add_prefix("max_"))
 
     return statistic_values
