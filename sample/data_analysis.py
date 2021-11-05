@@ -47,10 +47,7 @@ def count_pixels_in_raster(tile_fpath: str, lut_fpath: str, band_no: int = 1) ->
 
     return pixel_count_dict
 
-def calculate_raster_statistics(tile_fpath: str, band_no: int) -> list:
-    # TESTS
-    assert os.path.isfile(tile_fpath), "'{}' is not a file.".format(tile_fpath)
-    
+def calculate_raster_statistics(tile_fpath: str, band_no: int) -> list:    
     # Opening tile
     try:
         tile = rio.open(tile_fpath)
