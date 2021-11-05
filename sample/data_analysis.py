@@ -73,38 +73,37 @@ def calculate_raster_statistics(tile_fpath: str, band_no: int) -> list:
     # NOTE: These should be in the exact same order as the names.
     statistic_values = []
 
+    # Mean
     statistic_values.append(
         round(np.nanmean(band), 2)
     )
 
+    # Min.
     statistic_values.append(
         round(np.nanmin(band), 2)
     )
 
+    # Max.
     statistic_values.append(
         round(np.nanmax(band), 2)
     )
 
+    # Range
     statistic_values.append(
         abs(statistic_values[2] - statistic_values[1])
     )
 
+    # Median
     statistic_values.append(
         round(np.nanmedian(band), 2)
     )
 
+    # Coefficient of variation
     statistic_values.append(
         round((statistic_values[1] / statistic_values[0]) * 100, 2)
     )
 
-    # statistic_values.append(round(float(tile.tags(band_no)['STATISTICS_MEAN']), 2))
-    # statistic_values.append(round(float(tile.tags(band_no)['STATISTICS_MINIMUM']), 1))
-    # statistic_values.append(round(float(tile.tags(band_no)['STATISTICS_MAXIMUM']), 1))
-    # statistic_values.append(abs(statistic_values[2] - statistic_values[1]))
-    # statistic_values.append(np.median(band[band > statistic_values[1]]))
-    # # SOURCE: https://www.statology.org/coefficient-of-variation-in-python/
-    # statistic_values.append(round(float(tile.tags(band_no)['STATISTICS_MINIMUM']) / float(tile.tags(band_no)['STATISTICS_MEAN']) * 100, 2))  
-
+    # TESTS
     assert len(statistic_names) == len(statistic_values), "The number of calculated values should be equal to the number of included statistics."
 
     # Create dictionary for statistics
