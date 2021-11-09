@@ -17,7 +17,8 @@ setup(
         'console_scripts': [
             'tile = sample.tiling:main',
             'aggregate = sample.aggregating:main',
-            'name_bands = sample.naming_bands:main' 
+            'name_bands = sample.naming_bands:main',
+            'visualise-tile = sample.visualise:main'
             ],
     },
     setup_requires=[
