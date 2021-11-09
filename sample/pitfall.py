@@ -9,14 +9,14 @@ from geopandas import GeoDataFrame
 def calculate_point_statistics_from_raster(
     raster_fpath: str, 
     point_csv_fpath: str, 
-    statistics: list = ['mean', 'median']
+    statistics: list = ['mean']
     ) -> dict:
     """Calculates statistics of points found within a raster.
 
     Args:
         raster_fpath (str): Filepath to raster
         point_csv_fpath (str): Filepath to CSV with point data
-        statistics (list): Statistics to include. Choose from: mean, min, max, median.
+        statistics (list): Statistics to include. Choose from: mean, min, max, median. Default: ['mean'].
     Returns:
         dict: Statistic names and values
     """
@@ -48,11 +48,17 @@ def calculate_point_statistics_from_raster(
 
     # Create empty dictionary from statistic values
     statistic_values = {}
-    
+
+    if points_within_raster.empty:
+        return statistic_values
+
+    # Select biodiversity indices (starting with: 'site_div')
+    points_diversity_indices = points_within_raster.filter(regex='site_div*', axis=1)
+
     # Add statistics to list:
     ## MEAN
     if 'mean' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].mean().add_prefix("mean_"))
+        statistic_values.update(points_diversity_indices.mean().add_prefix("mean_"))
 
     ## MEDIAN
     if 'median' in statistics:
