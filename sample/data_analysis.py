@@ -33,14 +33,12 @@ def count_pixels_in_raster(tile_fpath: str, lut_fpath: str, band_no: int = 1) ->
     land_use_class_dict = read_land_use_classes(lut_fpath)
 
     # Count the pixels
-    pixel_counts = np.bincount(band.flatten().astype(np.int32), minlength = len(land_use_class_dict) + 1)
+    pixel_counts = np.bincount(band.flatten().astype(np.int32), minlength = len(land_use_class_dict))
 
-    # Calculate the pixels which do not have zero (= NoData/cloud) pixels
-    non_zero_pixels = tile_total_size - pixel_counts[0]
-
+    # Calculate proportion
     pixel_counts = np.round(
-        np.true_divide(pixel_counts[1:], non_zero_pixels),
-        2)
+        np.true_divide(pixel_counts, tile_total_size),
+        4)
 
     # Create dictionary for land use names and proportions
     pixel_count_dict = dict(zip(land_use_class_dict.values(), pixel_counts))
@@ -70,35 +68,39 @@ def calculate_raster_statistics(tile_fpath: str, band_no: int) -> list:
     # NOTE: These should be in the exact same order as the names.
     statistic_values = []
 
-    # Mean
-    statistic_values.append(
-        round(np.nanmean(band), 2)
-    )
+    # Check if band does not only contain NaN values
+    if not np.isnan(band).all():
+        # Mean  
+        statistic_values.append(
+            round(np.nanmean(band), 2)
+        )
 
-    # Min.
-    statistic_values.append(
-        round(np.nanmin(band), 2)
-    )
+        # Min.
+        statistic_values.append(
+            round(np.nanmin(band), 2)
+        )
 
-    # Max.
-    statistic_values.append(
-        round(np.nanmax(band), 2)
-    )
+        # Max.
+        statistic_values.append(
+            round(np.nanmax(band), 2)
+        )
 
-    # Range
-    statistic_values.append(
-        abs(statistic_values[2] - statistic_values[1])
-    )
+        # Range
+        statistic_values.append(
+            abs(statistic_values[2] - statistic_values[1])
+        )
 
-    # Median
-    statistic_values.append(
-        round(np.nanmedian(band), 2)
-    )
+        # Median
+        statistic_values.append(
+            round(np.nanmedian(band), 2)
+        )
 
-    # Coefficient of variation
-    statistic_values.append(
-        round((statistic_values[1] / statistic_values[0]) * 100, 2)
-    )
+        # Coefficient of variation
+        statistic_values.append(
+            round((statistic_values[1] / statistic_values[0]) * 100, 2)
+        )
+    else:
+        return None
 
     # TESTS
     assert len(statistic_names) == len(statistic_values), "The number of calculated values should be equal to the number of included statistics."
