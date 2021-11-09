@@ -30,7 +30,7 @@ def main():
     parser.add_argument('-o', '--output',
         type = str,
         help='Folder of data table',
-        default="output/data.csv"
+        default="output/default.csv"
     )
 
     ## LAND USE LUT
@@ -70,7 +70,6 @@ def main():
     tile_fnames = sorted_alphanumeric(os.listdir(args.tiles))
 
     for tile_no in tqdm(range(len(tile_fnames)), desc = "Processing tiles..."):
-        print("TILE NO: {}".format(tile_no))
         # Join path of folder and tile filename
         f = os.path.join(args.tiles, tile_fnames[tile_no])
 
@@ -82,6 +81,9 @@ def main():
             # Get land use proportions (as dict)
             land_use_pixel_counts = count_pixels_in_raster(f, lut_fpath = args.lookup_table, band_no = 1)
 
+            if land_use_pixel_counts['clouds/shadows'] == 1:
+                continue
+
             # Create combined dictionary for all thematic band statistics
             thematic_band_statistics_combined = {}
 
@@ -89,6 +91,9 @@ def main():
             for band in range(2, tile.count + 1):
                 # Calculate raster statistics for single band
                 thematic_var_statistics = calculate_raster_statistics(f, band)
+
+                if thematic_var_statistics == None:
+                    continue
 
                 # Add calculated raster statistics to combined dictionary
                 thematic_band_statistics_combined = {**thematic_band_statistics_combined, **thematic_var_statistics}
@@ -99,13 +104,37 @@ def main():
                 point_csv_fpath = 'data/raw/pitfall_TER.csv'
             )
 
+            if not point_stats:
+                print("Point stats: {}".format(point_stats))
+                continue
+            else:
+                print(point_stats)
+
             # Create an ID (as dict)
             identifier = {
                 'ID': int(tile_no) + 1
             }
-            
+
+            # Create dict for filename
+            filename_dict = {
+                'filename': f
+            }
+
+            # Create dict for coordinates of tile
+            tile_extent_dict = {
+                'left': tile.bounds[0],
+                'top': tile.bounds[3]
+            }
+
+            # Create dict for CRS
+            tile_crs = {
+                'crs': tile.crs
+            }
+                           
             # Combine the dictionaries as Series
             combined = pd.Series({
+                **filename_dict,
+                **tile_extent_dict,
                 **identifier, 
                 **land_use_pixel_counts, 
                 **thematic_band_statistics_combined, 
@@ -116,12 +145,10 @@ def main():
                 # Initiate Pandas DataFrame
                 aggregated_df = pd.DataFrame([combined])
             else:
-                
                 aggregated_df = aggregated_df.append(combined, ignore_index=False)
 
-            aggregated_df
-
-    aggregated_df.to_csv("output/results.csv", float_format = '%.2f')
+    # Create name to output
+    aggregated_df.to_csv(args.output, float_format = '%.2f')
 
 if __name__ == '__main__':
     main()
