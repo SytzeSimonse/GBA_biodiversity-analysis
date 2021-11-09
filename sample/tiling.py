@@ -26,7 +26,8 @@ def main():
     ## TILE DIMENSION
     parser.add_argument('-d', '--dimension',
         type=int,
-        help='Dimension of tile'
+        help='Dimension of tile',
+        default=5000
     )
 
     ## VERBOSITY
@@ -35,7 +36,7 @@ def main():
     )
     args = parser.parse_args()
 
-    padded_raster_filepath = "data/intermediate/padded_raster.tif"
+    padded_raster_filepath = "data/intermediate/padded_raster_{}.tif".format(args.dimension)
 
     # Add padding to raster
     add_padding_to_raster(
@@ -44,10 +45,15 @@ def main():
         dimension = args.dimension
         )
 
+    # Create folder for tiles
+    tiles_folder_path = os.path.join("data/intermediate/tiles", "dimension_{}".format(args.dimension))
+    if not os.path.exists(tiles_folder_path):
+        os.makedirs(tiles_folder_path)
+
     # Tile raster
     tile_raster(
         raster_in = padded_raster_filepath,
-        raster_out = "data/intermediate/tiles",
+        raster_out = tiles_folder_path,
         dimension = args.dimension,
         verbose = args.verbose
     )
