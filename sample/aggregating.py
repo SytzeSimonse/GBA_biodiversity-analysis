@@ -104,11 +104,9 @@ def main():
                 point_csv_fpath = 'data/raw/pitfall_TER.csv'
             )
 
+            # If no point stats are found, continue loop
             if not point_stats:
-                print("Point stats: {}".format(point_stats))
                 continue
-            else:
-                print(point_stats)
 
             # Create an ID (as dict)
             identifier = {
