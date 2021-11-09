@@ -5,6 +5,8 @@ import rasterio as rio
 from itertools import product
 from rasterio import band, windows
 
+from rasterio.windows import Window
+
 import numpy as np
 
 import math
@@ -31,20 +33,32 @@ def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbo
         The padding should therefore be (x,y): 10, 25. 
         This would give a raster of 1180 + 2 * 10 = 1200 and 1350 + 2 * 25 = 1400.
     """
+    assert type(dimension) == int, "The dimension has to be provided as integer."
+    assert os.path.exists(raster_in), "The file '{}' does not exist.".format(raster_in)
+
     # Open raster
     raster = rio.open(raster_in)
-
-    # Create list for bands
-    padded_bands = []
-
-    # Copy metadata
-    out_meta = raster.meta.copy()
 
     # Get spatial resolution of raster
     raster_spatial_resolution = get_spatial_resolution_raster(raster_in)
 
     # Calculate resolution of tile in pixels
     tile_resolution = dimension / raster_spatial_resolution
+
+    # width, height = tile_resolution, tile_resolution  # size of tiles in pixels
+    # fill_value = 0 
+
+    # with rio.open(raster) as src:
+    #     offsets = product(range(0, src.meta['width'], width), range(0, src.meta['height'], height))
+    #     for col_off, row_off in offsets:
+    #         window = Window(col_off=col_off, row_off=row_off, width=width, height=height)
+    #         data = src.read(boundless=True, window=window, fill_value=fill_value)
+
+    # Create list for bands
+    padded_bands = []
+
+    # Copy metadata
+    out_meta = raster.meta.copy()
 
     # Determine padding based on spatial resolution of raster
     new_raster_width = raster.width + (tile_resolution - raster.width % tile_resolution)
@@ -186,7 +200,7 @@ def delete_single_value_tiles(tiles_folder: str) -> None:
         f = os.path.join(tiles_folder, tile)
 
         # If tile exists ...
-        if os.path.isfile(f):
+        if os.path.isfile(f) and os.path.splitext(f)[1] == ".tif":
 
             # Open raster and read band
             raster = rio.open(f)
