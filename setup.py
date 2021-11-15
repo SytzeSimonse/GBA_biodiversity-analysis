@@ -17,8 +17,9 @@ setup(
         'console_scripts': [
             'tile = sample.tiling:main',
             'aggregate = sample.aggregating:main',
-            'name_bands = sample.naming_bands:main',
-            'visualise-tile = sample.visualise:main'
+            'name-bands = sample.naming_bands:main',
+            'visualise-tile = sample.visualise:main',
+            'spectral-heterogeneity = sample.spectral_heterogeneity:main'
             ],
     },
     setup_requires=[
