@@ -21,7 +21,7 @@ def calculate_point_statistics_from_raster(
         dict: Statistic names and values
     """
     # List of possible statistics
-    available_statistics = ['mean', 'min', 'max', 'median']
+    available_statistics = ['mean', 'minimum', 'maximum', 'median']
     
     # Check if any statistic is used that is not available
     for statistic in statistics:
@@ -52,13 +52,10 @@ def calculate_point_statistics_from_raster(
     if points_within_raster.empty:
         return statistic_values
 
-    # Select biodiversity indices (starting with: 'site_div')
-    points_diversity_indices = points_within_raster.filter(regex='site_div*', axis=1)
-
     # Add statistics to list:
     ## MEAN
     if 'mean' in statistics:
-        statistic_values.update(points_diversity_indices.mean().add_prefix("mean_"))
+        statistic_values.update(points_within_raster.iloc[:,30:-1].mean().add_prefix("mean_"))
 
     ## MEDIAN
     if 'median' in statistics:

@@ -1,4 +1,5 @@
 import os
+import re
 
 def read_land_use_classes(lut_fpath) -> dict:
     """Finds a .txt file in the data folder to extract landuse classes from.
@@ -29,22 +30,17 @@ def read_land_use_classes(lut_fpath) -> dict:
             "You need a .txt file with the land use classes."
         )
 
-def read_band_names(band_names_fpath: str) -> list:
-    if os.path.exists(band_names_fpath):
-        # Create empty list for band names
-        band_names = []
+# Sorting function
+## FROM: https://stackoverflow.com/questions/4813061/non-alphanumeric-list-order-from-os-listdir/48030307#48030307
+def sort_alphanumerically(data: list) -> list:
+    """Sorts a list alphanumerically.   
 
-        # Read .txt file
-        with open(band_names_fpath) as f:
-            lines = f.read().splitlines()
-            print("You have {} band names.".format(len(lines)))
+    Args:
+        data (list): List of items.
 
-            # Loop through lines
-            for line in lines:
-                band_names.append(line)
-
-        return band_names
-    else:
-        raise FileNotFoundError(
-            "You need a .txt file with the band names."
-        )
+    Returns:
+        list: List of alphanumerically sorted items.
+    """
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(data, key=alphanum_key)

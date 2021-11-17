@@ -13,11 +13,13 @@ import rasterio as rio
 from osgeo import gdal
 
 from sample.data_analysis import calculate_raster_statistics, count_pixels_in_raster
-from sample.helpers import read_band_names
 from sample.pitfall import calculate_point_statistics_from_raster
+from sample.helpers import sort_alphanumerically
 
 def main():
-    parser = argparse.ArgumentParser(description = 'This command converts the tiles into a usable dataset.')
+    parser = argparse.ArgumentParser(
+        description = """This command creates a CSV file from a set of tiles (.tif rasters)"""
+    )
 
     ## INPUT
     parser.add_argument('-t', '--tiles',
@@ -31,6 +33,13 @@ def main():
         type = str,
         help='Folder of data table',
         default="output/default.csv"
+    )
+
+    ## LAND USE BAND
+    parser.add_argument('-lub', '--land-use-band',
+        type = int,
+        help = 'Number of band containing the land use data',
+        default = 16
     )
 
     ## LAND USE LUT
@@ -58,29 +67,29 @@ def main():
 
     # For each tile:
     ## Get the land use pixel proportions, and;
-    ## Get the statistics of the thematic variables.
+    ## Get the statistics of the thematic variables;
+    ## Get the statistics of the Sentinel-2 bands.
 
-    # Sorting function
-    def sorted_alphanumeric(data):
-        convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
-        return sorted(data, key=alphanum_key)
+    # Sort the list of tile filenames as displayed in file systems
+    tile_fnames = sort_alphanumerically(os.listdir(args.tiles))
 
-    # Loop through all tiles in folder
-    tile_fnames = sorted_alphanumeric(os.listdir(args.tiles))
-
+    # Loop through all the tiles
     for tile_no in tqdm(range(len(tile_fnames)), desc = "Processing tiles..."):
         # Join path of folder and tile filename
         f = os.path.join(args.tiles, tile_fnames[tile_no])
 
-        # Check if .tif file exists
+        # Check if 
         if os.path.isfile(f) and os.path.splitext(f)[1] == '.tif':
-            # Read tile
-            tile = rio.open(f)
+            try:
+                # Open tile
+                tile = rio.open(f)
+            except FileNotFoundError:
+                print("The file '{}' does not exist.".format(f))
 
             # Get land use proportions (as dict)
-            land_use_pixel_counts = count_pixels_in_raster(f, lut_fpath = args.lookup_table, band_no = 1)
+            land_use_pixel_counts = count_pixels_in_raster(f, lut_fpath = args.lookup_table, band_no = 16)
 
+            # Skip tiles which solely consist of clouds/shadows
             if land_use_pixel_counts['clouds/shadows'] == 1:
                 continue
 
@@ -88,10 +97,15 @@ def main():
             thematic_band_statistics_combined = {}
 
             # Loop through all the thematic variables
-            for band in range(2, tile.count + 1):
+            for band in range(1, tile.count + 1):
+                # Skip the band with land use classes
+                if band == args.land_use_band:
+                    continue
+
                 # Calculate raster statistics for single band
                 thematic_var_statistics = calculate_raster_statistics(f, band)
 
+                # If there is no available data, skip this band
                 if thematic_var_statistics == None:
                     continue
 
@@ -136,14 +150,14 @@ def main():
                 **identifier, 
                 **land_use_pixel_counts, 
                 **thematic_band_statistics_combined, 
-                **point_stats}, name=f)
+                **point_stats})
 
             # If this is the first row...
             if aggregated_df.empty:
                 # Initiate Pandas DataFrame
                 aggregated_df = pd.DataFrame([combined])
             else:
-                aggregated_df = aggregated_df.append(combined, ignore_index=False)
+                aggregated_df = aggregated_df.append(combined, ignore_index=True)
 
     # Create name to output
     aggregated_df.to_csv(args.output, float_format = '%.2f')

@@ -28,7 +28,10 @@ def main():
 
     args = parser.parse_args()
 
+    print(args.raster)
+    print(args.names)
+
     set_band_descriptions(
-        filepath = args.raster,
+        raster_fpath = args.raster,
         bands_txt = args.names
     )

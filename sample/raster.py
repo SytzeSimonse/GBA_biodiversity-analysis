@@ -16,8 +16,6 @@ import rasterio
 
 from osgeo import gdal
 
-from sample.helpers import read_band_names
-
 def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbose = True):
     """Adds a padding to the raster, based on the dimension of the tiles.
 
@@ -44,15 +42,6 @@ def add_padding_to_raster(raster_in: str, raster_out: str, dimension: int, verbo
 
     # Calculate resolution of tile in pixels
     tile_resolution = dimension / raster_spatial_resolution
-
-    # width, height = tile_resolution, tile_resolution  # size of tiles in pixels
-    # fill_value = 0 
-
-    # with rio.open(raster) as src:
-    #     offsets = product(range(0, src.meta['width'], width), range(0, src.meta['height'], height))
-    #     for col_off, row_off in offsets:
-    #         window = Window(col_off=col_off, row_off=row_off, width=width, height=height)
-    #         data = src.read(boundless=True, window=window, fill_value=fill_value)
 
     # Create list for bands
     padded_bands = []
@@ -211,15 +200,34 @@ def delete_single_value_tiles(tiles_folder: str) -> None:
                 os.remove(f)
 
 def set_band_descriptions(raster_fpath: str, bands_txt: str) -> None:
-    """Sets descriptions of raster bands.
+    """Sets descriptions of raster bands using a .txt file.
 
     Args:
         raster_fpath (str): Filepath of raster.
         bands_txt (str): Filepath of .txt file with band names.
     """
+    # Open raster using GDAL
     ds = gdal.Open(raster_fpath, gdal.GA_Update)
-    bands = read_band_names(bands_txt)
+
+    # Open .txt file
+    band_file = open(bands_txt, "r")
+
+    # Splitting the content by comma
+    bands = band_file.read().split(sep = ",")
+
+    # Loop through all bands
     for band in range(1, len(bands)+1):
         rb = ds.GetRasterBand(band)
         rb.SetDescription(bands[band - 1])
+
+    # Delete dataset    
     del ds
+
+def combine_rasters(rasters: list):
+    print("There are {} rasters to be combined.".format(len(rasters)))
+    
+    for raster_fpath in rasters:
+        raster = rio.open(raster_fpath)
+
+        for band in range(1, raster.count):
+            print(band)
