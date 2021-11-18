@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import math
 
 import pandas as pd
 
@@ -18,14 +19,21 @@ from sample.helpers import sort_alphanumerically
 
 def main():
     parser = argparse.ArgumentParser(
-        description = """This command creates a CSV file from a set of tiles (.tif rasters)"""
+        description = """This command aggregates data from a raster file."""
     )
 
     ## INPUT
-    parser.add_argument('-t', '--tiles',
+    parser.add_argument('-r', '--raster',
         type = str,
-        help='Directory of tiles',
-        default='data/intermediate/tiles'
+        help='Filepath to raster',
+        default='data/raw/combined.tif'
+    )
+
+    ## INPUT
+    parser.add_argument('-d', '--dimension',
+        type = str,
+        help='Dimension of tiles (in metres)',
+        default=4000
     )
 
     ## OUTPUT
@@ -48,12 +56,6 @@ def main():
         default='data/raw/classes.txt'
     )
 
-    ## BAND NAMES
-    parser.add_argument('-b', '--band-names',
-        help='Names of raster bands (as .txt)',
-        default='data/raw/bands.txt'
-    )
-
     ## VERBOSITY
     parser.add_argument('-v', '--verbose',
         help='Verbose output',
@@ -61,106 +63,92 @@ def main():
     )
 
     args = parser.parse_args()
-          
-    # Create an empty dataframe
-    aggregated_df = pd.DataFrame()
 
     # For each tile:
     ## Get the land use pixel proportions, and;
     ## Get the statistics of the thematic variables;
     ## Get the statistics of the Sentinel-2 bands.
 
-    # Sort the list of tile filenames as displayed in file systems
-    tile_fnames = sort_alphanumerically(os.listdir(args.tiles))
+    raster = rio.open(args.raster)
+    
+    # Get raster cell size
+    cell_size_x, cell_size_y = raster.res
 
-    # Loop through all the tiles
-    for tile_no in tqdm(range(len(tile_fnames)), desc = "Processing tiles..."):
-        # Join path of folder and tile filename
-        f = os.path.join(args.tiles, tile_fnames[tile_no])
+    # Calculate tile size
+    tile_size_x = int((int(args.dimension) / cell_size_x))
+    tile_size_y = int((int(args.dimension) / cell_size_y))
 
-        # Check if 
-        if os.path.isfile(f) and os.path.splitext(f)[1] == '.tif':
-            try:
-                # Open tile
-                tile = rio.open(f)
-            except FileNotFoundError:
-                print("The file '{}' does not exist.".format(f))
+    # Calculate number of tiles necessary
+    tiles_x = math.ceil(raster.width / tile_size_x)
+    tiles_y = math.ceil(raster.height / tile_size_y)
 
-            # Get land use proportions (as dict)
-            land_use_pixel_counts = count_pixels_in_raster(f, lut_fpath = args.lookup_table, band_no = 16)
+    print("You will have {} x {} = {} tiles in total.".format(
+        tiles_x, tiles_y, tiles_x * tiles_y
+    ))
 
-            # Skip tiles which solely consist of clouds/shadows
-            if land_use_pixel_counts['clouds/shadows'] == 1:
-                continue
+    print(raster.bounds)
 
-            # Create combined dictionary for all thematic band statistics
-            thematic_band_statistics_combined = {}
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from alive_progress import alive_bar
+    from sample.data_analysis import calculate_array_statistics, count_proportions_in_array
+    from sample.pitfall import calculate_point_statistics_from_raster_v2
 
-            # Loop through all the thematic variables
-            for band in range(1, tile.count + 1):
-                # Skip the band with land use classes
-                if band == args.land_use_band:
-                    continue
+    my_data = pd.DataFrame()
 
-                # Calculate raster statistics for single band
-                thematic_var_statistics = calculate_raster_statistics(f, band)
+    with alive_bar(tiles_x * tiles_y) as bar:
+        for tile_x in range(0, tiles_x):
+            for tile_y in range(0, tiles_y):
+                # Create empty dictionary for statistics
+                statistics = {}
 
-                # If there is no available data, skip this band
-                if thematic_var_statistics == None:
-                    continue
+                # Loop through all bands for this chunk
+                for band_no in range(1, 2):
+                    bar()
 
-                # Add calculated raster statistics to combined dictionary
-                thematic_band_statistics_combined = {**thematic_band_statistics_combined, **thematic_var_statistics}
+                    tile = raster.read(band_no)[
+                        (tile_x * tile_size_x):((tile_x + 1) * tile_size_x),
+                        (tile_y * tile_size_y):((tile_y + 1) * tile_size_y)
+                        ]
 
-            # Calculate statistics of point data (as dict)          
-            point_stats = calculate_point_statistics_from_raster(
-                raster_fpath = f,
-                point_csv_fpath = 'data/raw/pitfall_TER.csv'
-            )
+                    if band_no == args.land_use_band:
+                        props = count_proportions_in_array(tile, "data/raw/classes.txt")
+                        statistics = {**props, **statistics}
 
-            # If no point stats are found, continue loop
-            if not point_stats:
-                continue
+                    if np.all(tile < -10_000_000):
+                        continue
 
-            # Create an ID (as dict)
-            identifier = {
-                'ID': int(tile_no) + 1
-            }
+                    tile_statistics = calculate_array_statistics(tile)
+                    temp = "band {} - ".format(band_no)
+                    tile_statistics_named = {temp + str(key): val for key, val in tile_statistics.items()}
 
-            # Create dict for filename
-            filename_dict = {
-                'filename': f
-            }
+                    statistics = {**statistics, **tile_statistics_named}
 
-            # Create dict for coordinates of tile
-            tile_extent_dict = {
-                'left': tile.bounds[0],
-                'top': tile.bounds[3]
-            }
+                # NOTE: bounds = left, bottom, right, top
+                raster_width = int(raster.bounds[2] - raster.bounds[0])
+                raster_height = int(raster.bounds[3] - raster.bounds[1])
 
-            # Create dict for CRS
-            tile_crs = {
-                'crs': tile.crs
-            }
-                           
-            # Combine the dictionaries as Series
-            combined = pd.Series({
-                **filename_dict,
-                **tile_extent_dict,
-                **identifier, 
-                **land_use_pixel_counts, 
-                **thematic_band_statistics_combined, 
-                **point_stats})
+                coords_size_x = raster_width / tiles_x
+                coords_size_y = raster_height / tiles_y
 
-            # If this is the first row...
-            if aggregated_df.empty:
-                # Initiate Pandas DataFrame
-                aggregated_df = pd.DataFrame([combined])
-            else:
-                aggregated_df = aggregated_df.append(combined, ignore_index=True)
+                bounding_box = [
+                    int(raster.bounds[0] + tile_x * coords_size_x),
+                    int(raster.bounds[0] + tile_x * coords_size_x + coords_size_x),
+                    int(raster.bounds[1] + tile_y * coords_size_y),
+                    int(raster.bounds[1] + tile_y * coords_size_y + coords_size_y),
+                ]
 
-    # Create name to output
-    aggregated_df.to_csv(args.output, float_format = '%.2f')
+                res = calculate_point_statistics_from_raster_v2(
+                    bounding_box,
+                    point_csv_fpath = "data/raw/pitfall_TER.csv"
+                )
+
+                if res:
+                    statistics = {**statistics, **res}
+                    my_data = my_data.append(statistics, ignore_index=True)
+
+    print("Aggregating!")
+    my_data.to_csv("testing.csv")
 
 if __name__ == '__main__':
     main()

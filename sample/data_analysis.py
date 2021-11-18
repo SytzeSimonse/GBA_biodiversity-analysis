@@ -19,7 +19,7 @@ def count_pixels_in_raster(tile_fpath: str, lut_fpath: str, band_no: int = 1) ->
         band_no (int, optional): Band number to use. Defaults to 1.
 
     Returns:
-        list: Proportions of land use classes.
+        list: Proportions of pixels.
     """
     # Opening tile
     tile = rio.open(tile_fpath) 
@@ -40,6 +40,33 @@ def count_pixels_in_raster(tile_fpath: str, lut_fpath: str, band_no: int = 1) ->
     # Calculate proportion
     pixel_counts = np.round(
         np.true_divide(pixel_counts, tile_total_size),
+        4)
+
+    # Create dictionary for land use names and proportions
+    pixel_count_dict = dict(zip(land_use_class_dict.values(), pixel_counts))
+
+    return pixel_count_dict
+
+def count_proportions_in_array(data: str, lut_fpath: str) -> dict:
+    """Counts the proportions of each unique value in an array.
+
+    Args:
+        tile_fpath (str): Filepath of tile (.tif).
+        lut_fpath (str): Filepath of LookUp-Table (.txt).
+        band_no (int, optional): Band number to use. Defaults to 1.
+
+    Returns:
+        list: Proportions of pixels.
+    """
+    # Get landuse classes
+    land_use_class_dict = read_land_use_classes(lut_fpath)
+
+    # Count the pixels
+    pixel_counts = np.bincount(data.flatten().astype(np.int32), minlength = len(land_use_class_dict))
+    
+    # Calculate proportion
+    pixel_counts = np.round(
+        np.true_divide(pixel_counts, data.size),
         4)
 
     # Create dictionary for land use names and proportions
@@ -126,5 +153,66 @@ def calculate_raster_statistics(
 
     # Create dictionary for statistics
     statistics = dict(zip(statistic_names, statistic_values))
+
+    return statistics
+
+def calculate_array_statistics(
+    data: np.array,
+    statistics: list = ['mean', 'range', 'coefficient_of_variation']
+    ) -> list:    
+
+    # Set negative values to NaN
+    data[data < 0] = np.nan
+
+    # List of statistic names to include
+    statistic_names = ['mean', 'minimum', 'maximum', 'range', 'median', 'coefficient_of_variation']
+
+    # List of statistic values (as calculated)
+    # NOTE: These should be in the exact same order as the names.
+    statistic_values = []
+
+    # Check if band does not only contain NaN values
+    if not np.isnan(data).all():
+        # Mean  
+        if 'mean' in statistics:
+            statistic_values.append(
+                round(np.nanmean(data), 3)
+            )
+
+        # Minimum
+        if 'min' in statistics:
+            statistic_values.append(
+                round(np.nanmin(data), 3)
+            )
+
+        # Maximum
+        if 'max' in statistics:
+            statistic_values.append(
+                round(np.nanmax(data), 3)
+            )
+
+        # Range
+        if 'range' in statistics:
+            statistic_values.append(
+                round(np.nanmax(data) - np.nanmin(data), 3)
+            )
+
+        # Median
+        if 'median' in statistics:
+            statistic_values.append(
+                round(np.nanmedian(data), 3)
+            )
+
+        # Coefficient of variation
+        if 'coefficient_of_variation' in statistics:
+            if not np.nanmean(data) == 0: # avoid division by zero
+                statistic_values.append(
+                    round((np.nanstd(data, ddof=1) / np.nanmean(data)) * 100, 3)
+                )
+    else:
+        return None
+
+    # Create dictionary for statistics
+    statistics = dict(zip(statistics, statistic_values))
 
     return statistics
