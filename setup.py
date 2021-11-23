@@ -19,7 +19,8 @@ setup(
             'aggregate = sample.aggregating:main',
             'name-bands = sample.naming_bands:main',
             'visualise-tile = sample.visualise:main',
-            'spectral-heterogeneity = sample.spectral_heterogeneity:main'
+            'spectral-heterogeneity = sample.spectral_heterogeneity:main',
+            'create-polygon = sample.creating_polygon:main' 
             ],
     },
     setup_requires=[
