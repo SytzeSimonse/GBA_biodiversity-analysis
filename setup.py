@@ -15,7 +15,6 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'tile = sample.tiling:main',
             'aggregate = sample.aggregating:main',
             'name-bands = sample.naming_bands:main',
             'visualise-tile = sample.visualise:main',
