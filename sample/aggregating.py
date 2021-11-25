@@ -108,98 +108,43 @@ def main():
         tiles_x, tiles_y, total_num_tiles
     ))
 
-    # NOTE: bounds = left, bottom, right, top
-    # Calculate the raster width in coordinates
-    raster_width = int(raster.bounds[2] - raster.bounds[0])
-    raster_height = int(raster.bounds[3] - raster.bounds[1])
-
-    # Calculate the size of each tile in coordinates
-    coords_size_x = raster_width / tiles_x
-    coords_size_y = raster_height / tiles_y
-
     # Create counter variable for the amount of points (= traps) found, to verify its equal to total number of points
     total_points_encountered = 0
 
     # Create empty Pandas DataFrame for storing our aggregated data
     data_table = pd.DataFrame()
 
-    # Create a range for the bands to loop through, starting with the land use band
-    band_order = chain(
-        range(args.land_use_band, raster.count),
-        range(1, args.land_use_band + 1)
-    )
-
-    with alive_bar(total_num_tiles * raster.count) as bar:
+    with alive_bar(total_num_tiles) as bar:
         for index, (col_off, row_off) in enumerate(offsets):
-            # Create function
-            def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height) -> pd.Series:
-                # Set window
-                window = Window(col_off = col_off, row_off = row_off, width = tile_size_x, height = tile_size_y)
 
-                # Land use classes dict
-                land_use_proportions = {}
-                
-                #Create empty dictionary for statistics
-                statistics = {}
+            bar()
 
-                # Loop through all bands for this chunk
-                for band_no in band_order:
-                    # Add +1 to bar
-                    bar()
+            result = create_virtual_tile_data(
+                col_off = col_off,
+                row_off = row_off,
+                raster = raster,
+                tile_width = tile_size_x,
+                tile_height = tile_size_y
+            )
 
-                    # Read band data
-                    data = raster.read(band_no, boundless = False, window = window, fill_value = fill_value)
+            bounds, result_points, num_points = get_virtual_tile_point_date(
+                col_off = col_off,
+                row_off = row_off,
+                raster = raster,
+                tile_width = tile_size_x,
+                tile_height = tile_size_y
+            )
 
-                    if np.all(data == np.nan):
-                        print("Tile ({},{}) only contains NaN values.".format(col_off, row_off))
-                        continue
+            if result == False or num_points == 0:
+                continue
 
-                    # For the land use band, count proportions instad of array statistics
-                    if band_no == args.land_use_band:
-                        land_use_proportions = count_proportions_in_array(data, "data/raw/classes.txt")
+            found_traps = {
+                "Number of traps": num_points
+            }
 
-                        if land_use_proportions['clouds/shadows'] == 1:
-                            print("This tile has only clouds and/or shadows, and is therefore skipped.")
-                            continue
+            combined = {**bounds, **found_traps, **result, **result_points}
 
-                        statistics = {**land_use_proportions, **statistics}
-
-                    if np.all(data < -10_000_000):
-                        if args.verbose:
-                            print("The data in tile {} has only negative values.".format(window))
-                        continue
-
-                    tile_statistics = calculate_array_statistics(data)
-                    temp = "band {} - ".format(band_no)
-
-                    if tile_statistics:
-                        tile_statistics_named = {temp + str(key): val for key, val in tile_statistics.items()}
-
-                    statistics = {**statistics, **tile_statistics_named}
-
-                bounding_box = [
-                    int(raster.bounds[0] + (col_off / tile_size_x) * coords_size_x),
-                    int(raster.bounds[0] + (col_off / tile_size_x) * coords_size_x + coords_size_x),
-                    int(raster.bounds[1] + (row_off / tile_size_y) * coords_size_y),
-                    int(raster.bounds[1] + (row_off / tile_size_y) * coords_size_y + coords_size_y),
-                ]
-
-                print("Bounding box: {}".format(bounding_box))
-
-                names = ['left', 'right', 'top', 'bottom']
-
-                bounding_box_dict = dict(zip(names, bounding_box))
-                statistics = {**bounding_box_dict, **statistics}
-
-                res, num_points = calculate_point_statistics_from_raster_v2(
-                    bounding_box,
-                    point_csv_fpath = "data/raw/pitfall_TER.csv"
-                )
-
-                total_points_encountered += num_points
-                print(total_points_encountered)
-
-                data_table = data_table.append(statistics, ignore_index=True)
+            data_table = data_table.append(combined, ignore_index = True)
 
         data_table.to_csv(args.output)
 
@@ -321,13 +266,106 @@ def main():
 
     #             data_table.to_csv(args.output)
 
-    print("Aggregating!")
-
     assert total_points_encountered == TOTAL_NUM_OF_TRAPS, "Only {} points out of {} points".format(
         total_points_encountered, TOTAL_NUM_OF_TRAPS
     )
 
     data_table.to_csv(args.output)
+
+def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height, land_use_band: int = 16, verbose = True) -> pd.Series:
+    # Set window
+    window = Window(col_off = col_off, row_off = row_off, width = tile_width, height = tile_height)
+
+    # Create empty dictionary for land use proportions
+    land_use_proportions = {}
+    
+    # Create empty dictionary for band statistics
+    statistics = {}
+
+    # Create a range for the bands to loop through, starting with the land use band
+    band_order = chain(
+        range(land_use_band, raster.count),
+        range(1, land_use_band + 1)
+    )
+
+    # Loop through all bands for the tile
+    for band_no in range(1, raster.count):
+        # Read band data
+        band_data = raster.read(band_no, boundless = False, window = window, fill_value = 0)
+
+        # If all values in the band are NaN, skip this tile
+        if np.all(band_data == np.nan):
+            if verbose:
+                print("Tile ({},{}) only contains NaN values.".format(col_off, row_off))
+            return False
+
+        # If all values are very negative, skip this tile
+        # NOTE: With (supposedly) rasterio, the NaN values are assigned the largest possible negative value
+        if np.all(band_data < -10_000_000):
+            if verbose:
+                print("The data in tile {} has only negative values.".format(window))
+            return False
+
+        # For the land use band, count proportions instad of array statistics
+        if band_no == land_use_band:
+            # Get land use proportions
+            land_use_proportions = count_proportions_in_array(band_data, "data/raw/classes.txt")
+
+            # If the tile only consists of the class 'clouds/shadows', skip this tile
+            if land_use_proportions['clouds/shadows'] == 1:
+                if verbose:
+                    print("This tile has only clouds and/or shadows, and is therefore skipped.")
+                return False
+
+            statistics = {**land_use_proportions, **statistics}
+            continue
+
+        tile_statistics = calculate_array_statistics(band_data)
+        temp = "band {} - ".format(band_no)
+
+        if tile_statistics:
+            tile_statistics_named = {temp + str(key): val for key, val in tile_statistics.items()}
+
+        statistics = {**statistics, **tile_statistics_named}
+
+    return statistics
+
+def get_virtual_tile_point_date(raster, col_off, row_off, tile_width, tile_height):
+    """[summary]
+
+    Args:
+        raster ([type]): [description]
+    """
+    # Calculate the number of tiles that fit in the raster
+    tiles_x = math.ceil(raster.width / tile_width)
+    tiles_y = math.ceil(raster.height / tile_height)
+
+    # NOTE: bounds = left, bottom, right, top
+    # Calculate the raster width, expressed in the CRS of the raster
+    raster_width = int(raster.bounds[2] - raster.bounds[0])
+    raster_height = int(raster.bounds[3] - raster.bounds[1])
+
+    # Calculate the size of each tile in coordinates
+    coords_size_x = raster_width / tiles_x
+    coords_size_y = raster_height / tiles_y
+
+    # Create bounding box
+    bounding_box = [
+        int(raster.bounds[0] + (col_off / tile_width) * coords_size_x),
+        int(raster.bounds[0] + (col_off / tile_width) * coords_size_x + coords_size_x),
+        int(raster.bounds[1] + (row_off / tile_height) * coords_size_y),
+        int(raster.bounds[1] + (row_off / tile_height) * coords_size_y + coords_size_y),
+    ]
+
+    result, num_points = calculate_point_statistics_from_raster_v2(
+        bounding_box,
+        point_csv_fpath = "data/raw/pitfall_TER.csv"
+    )
+
+    names = ['left', 'right', 'top', 'bottom']
+    bounding_box_dict = dict(zip(names, bounding_box))
+
+    return bounding_box_dict, result, num_points
 
 if __name__ == '__main__':
     main()

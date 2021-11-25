@@ -3,6 +3,7 @@ import rasterio as rio
 import numpy as np
 
 import os
+import math
 
 from osgeo import gdal
 
@@ -47,19 +48,31 @@ def count_pixels_in_raster(tile_fpath: str, lut_fpath: str, band_no: int = 1) ->
 
     return pixel_count_dict
 
-def count_proportions_in_array(data: str, lut_fpath: str) -> dict:
+def count_proportions_in_array(data: np.ndarray, lut_fpath: str) -> dict:
     """Counts the proportions of each unique value in an array.
 
     Args:
-        tile_fpath (str): Filepath of tile (.tif).
+        data (NumPy.array): Array with raster values.
         lut_fpath (str): Filepath of LookUp-Table (.txt).
-        band_no (int, optional): Band number to use. Defaults to 1.
 
     Returns:
-        list: Proportions of pixels.
+        dict: Proportions of pixels.
     """
+    ### BEGIN TESTS ###
+    assert os.path.exists(lut_fpath), "The file '{}' does not exist.".format(lut_fpath)
+
+    lut_file_extension = os.path.splitext(lut_fpath)[1]
+    assert lut_file_extension == ".txt", "This function only excepts .txt format; not {}.".format(lut_file_extension)
+    assert type(data) == np.ndarray, "The data should be provided as NumPy array, not as {}.".format(type(data))
+    
+    if np.all(data == np.nan):
+        print("There is no data.")
+        return
+
     # Get landuse classes
     land_use_class_dict = read_land_use_classes(lut_fpath)
+
+    data = data[data >= 0]
 
     # Count the pixels
     pixel_counts = np.bincount(data.flatten().astype(np.int32), minlength = len(land_use_class_dict))
@@ -68,6 +81,8 @@ def count_proportions_in_array(data: str, lut_fpath: str) -> dict:
     pixel_counts = np.round(
         np.true_divide(pixel_counts, data.size),
         4)
+
+    assert math.isclose(pixel_counts.sum(), 1, abs_tol=0.001), "The sum of all the proportions is {}, but should be exactly 1.".format(pixel_counts.sum())
 
     # Create dictionary for land use names and proportions
     pixel_count_dict = dict(zip(land_use_class_dict.values(), pixel_counts))

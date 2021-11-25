@@ -114,12 +114,13 @@ def calculate_point_statistics_from_raster_v2(
     statistic_values = {}
 
     if points_within_raster.empty:
-        return statistic_values
+        return statistic_values, 0
 
     # Add statistics to list:
     ## MEAN
     if 'mean' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,30:-1].mean().add_prefix("mean_"))
+        mean_of_points = points_within_raster.iloc[:,30:-1].mean().add_prefix("mean_")
+        statistic_values.update(round(mean_of_points, 2))
 
     ## MEDIAN
     if 'median' in statistics:
@@ -133,4 +134,7 @@ def calculate_point_statistics_from_raster_v2(
     if 'maximum' in statistics:
         statistic_values.update(points_within_raster.iloc[:,-29:].max().add_prefix("max_"))
 
-    return statistic_values
+    print("Statistics: {}".format(statistics))
+    print("Len: {}".format(len(points_within_raster)))
+
+    return statistic_values, len(points_within_raster)
