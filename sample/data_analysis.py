@@ -173,61 +173,54 @@ def calculate_raster_statistics(
 
 def calculate_array_statistics(
     data: np.array,
-    statistics: list = ['mean', 'range', 'coefficient_of_variation']
+    included_statistics: list = ['mean']
     ) -> list:    
 
-    # Set negative values to NaN
-    data[data < 0] = np.nan
+    assert not np.isnan(data).all(), "This array only contains NaN values."
 
     # List of statistic names to include
-    statistic_names = ['mean', 'minimum', 'maximum', 'range', 'median', 'coefficient_of_variation']
+    statistic_names = {
+        'mean': None, 
+        'minimum': None, 
+        'maximum': None, 
+        'range': None,
+        'median': None,
+        'coefficient_of_variation': None
+    }
+
+    # Check if statistics passed as argument are an option
+    for statistic in included_statistics:
+        assert statistic in statistic_names, "'{}' is not available as statistic.".format(statistic)
 
     # List of statistic values (as calculated)
     # NOTE: These should be in the exact same order as the names.
     statistic_values = []
 
-    # Check if band does not only contain NaN values
-    if not np.isnan(data).all():
-        # Mean  
-        if 'mean' in statistics:
-            statistic_values.append(
-                round(np.nanmean(data), 3)
-            )
+    # Mean  
+    if 'mean' in included_statistics:
+        statistic_names["mean"] = round(np.nanmean(data), 3)
 
-        # Minimum
-        if 'min' in statistics:
-            statistic_values.append(
-                round(np.nanmin(data), 3)
-            )
+    # Minimum
+    if 'minimum' in included_statistics:
+        statistic_names['minimum'] = round(np.nanmin(data), 3)
 
-        # Maximum
-        if 'max' in statistics:
-            statistic_values.append(
-                round(np.nanmax(data), 3)
-            )
+    # Maximum
+    if 'maximum' in included_statistics:
+        statistic_names['maximum'] = round(np.nanmax(data), 3)
 
-        # Range
-        if 'range' in statistics:
-            statistic_values.append(
-                round(np.nanmax(data) - np.nanmin(data), 3)
-            )
+    # Range
+    if 'range' in included_statistics:
+        statistic_names['range'] = round(np.nanmax(data) - np.nanmin(data), 3)
 
-        # Median
-        if 'median' in statistics:
-            statistic_values.append(
-                round(np.nanmedian(data), 3)
-            )
+    # Median
+    if 'median' in included_statistics:
+        statistic_names['median'] = round(np.nanmedian(data), 3)
 
-        # Coefficient of variation
-        if 'coefficient_of_variation' in statistics:
-            if not np.nanmean(data) == 0: # avoid division by zero
-                statistic_values.append(
-                    round((np.nanstd(data, ddof=1) / np.nanmean(data)) * 100, 3)
-                )
-    else:
-        return None
+    # Coefficient of variation
+    if 'coefficient_of_variation' in included_statistics:
+        #if not np.nanmean(data) == 0: # avoid division by zero
+        statistic_names['coefficient_of_variation'] = round((np.nanstd(data, ddof=1) / np.nanmean(data)) * 100, 3)
 
-    # Create dictionary for statistics
-    statistics = dict(zip(statistics, statistic_values))
+    final_statistics = {k: v for k, v in statistic_names.items() if v is not None}
 
-    return statistics
+    return final_statistics

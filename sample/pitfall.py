@@ -6,91 +6,30 @@ import pandas as pd
 from shapely.geometry import Point
 from geopandas import GeoDataFrame
 
-def calculate_point_statistics_from_raster(
-    raster_fpath: str, 
-    point_csv_fpath: str, 
-    statistics: list = ['mean']
-    ) -> dict:
-    """Calculates statistics of points found within a raster.
-
-    Args:
-        raster_fpath (str): Filepath to raster
-        point_csv_fpath (str): Filepath to CSV with point data
-        statistics (list): Statistics to include. Choose from: mean, min, max, median. Default: ['mean'].
-    Returns:
-        dict: Statistic names and values
-    """
-    # List of possible statistics
-    available_statistics = ['mean', 'minimum', 'maximum', 'median']
-    
-    # Check if any statistic is used that is not available
-    for statistic in statistics:
-        assert statistic in available_statistics, "'{}' is not an available option.".format(statistic)
-
-    # Open tile
-    raster = rio.open(raster_fpath)
-
-    # Read point data as Pandas DataFrame
-    df = pd.read_csv(point_csv_fpath)
-
-    # Get geometry from DataFrame
-    geometry = [Point(xy) for xy in zip(df['UTM E'], df['UTM N'])]
-
-    # Create GeoPandas DataFrame, using geometries
-    gdf = GeoDataFrame(df, geometry = geometry)
-
-    # Create list of points found within raster
-    points_within_raster = gdf.cx[
-        ## NOTE: bounds = left, bottom, right, top
-        ## left, right
-        ## top, bottom
-        raster.bounds[0]:raster.bounds[2], 
-        raster.bounds[3]:raster.bounds[1]
-    ]
-
-    # Create empty dictionary from statistic values
-    statistic_values = {}
-
-    if points_within_raster.empty:
-        return statistic_values
-
-    # Add statistics to list:
-    ## MEAN
-    if 'mean' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,30:-1].mean().add_prefix("mean_"))
-
-    ## MEDIAN
-    if 'median' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].median().add_prefix("median_"))
-
-    ## MINIMUM
-    if 'minimum' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].min().add_prefix("min_"))
-
-    ## MAXIMUM
-    if 'maximum' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].max().add_prefix("max_"))
-
-    return statistic_values
-
-def calculate_point_statistics_from_raster_v2(
+def calculate_point_statistics_within_bounds(
     bounding_box: list,
     point_csv_fpath: str, 
-    statistics: list = ['mean']
+    statistics: list = ['mean'],
+    verbose: bool = True
     ) -> dict:
-    """Calculates statistics of points found within a raster.
+    """Aggregates the values of point data found within specified bounds into statistics.
 
     Args:
-        raster_fpath (str): Filepath to raster
-        point_csv_fpath (str): Filepath to CSV with point data
-        statistics (list): Statistics to include. Choose from: mean, min, max, median. Default: ['mean'].
+        bounding_box (list): Bounding box with 4 values (X1, Y1, X2, Y2).
+        point_csv_fpath (str): Filepath to CSV file with point data.
+        statistics (list, optional): List of statistics to return. Defaults to ['mean'].
+        verbose (bool, optional): Verbosity flag.
+
     Returns:
-        dict: Statistic names and values
+        dict: [description]
     """
-    # List of possible statistics
+    assert len(bounding_box) == 4, "The bounding box should be specified with 4 values; not {}.".format(len(bounding_box))
+
+
+    # Create list of available statistics
     available_statistics = ['mean', 'minimum', 'maximum', 'median']
     
-    # Check if any statistic is used that is not available
+    # Check if any statistic is specified that is not available
     for statistic in statistics:
         assert statistic in available_statistics, "'{}' is not an available option.".format(statistic)
 
@@ -104,8 +43,7 @@ def calculate_point_statistics_from_raster_v2(
     gdf = GeoDataFrame(df, geometry = geometry)
 
     #Create list of points found within raster
-    points_within_raster = gdf.cx[
-        ## NOTE: bounds = left, bottom, right, top
+    points_within_bounds = gdf.cx[
         bounding_box[0]:bounding_box[1], 
         bounding_box[2]:bounding_box[3]
     ]
@@ -113,28 +51,32 @@ def calculate_point_statistics_from_raster_v2(
     # Create empty dictionary from statistic values
     statistic_values = {}
 
-    if points_within_raster.empty:
-        return statistic_values, 0
+    # If no points are found, return empty dictionary
+    if points_within_bounds.empty:
+        return statistic_values
+    
+    # Add the number of points found within the bounds to dictionary with statistics
+    statistic_values.update({"number of points": len(points_within_bounds)})
 
     # Add statistics to list:
     ## MEAN
     if 'mean' in statistics:
-        mean_of_points = points_within_raster.iloc[:,30:-1].mean().add_prefix("mean_")
+        mean_of_points = points_within_bounds.iloc[:,30:-1].mean().add_prefix("mean_")
         statistic_values.update(round(mean_of_points, 2))
 
     ## MEDIAN
     if 'median' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].median().add_prefix("median_"))
+        statistic_values.update(points_within_bounds.iloc[:,-29:].median().add_prefix("median_"))
 
     ## MINIMUM
     if 'minimum' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].min().add_prefix("min_"))
+        statistic_values.update(points_within_bounds.iloc[:,-29:].min().add_prefix("min_"))
 
     ## MAXIMUM
     if 'maximum' in statistics:
-        statistic_values.update(points_within_raster.iloc[:,-29:].max().add_prefix("max_"))
+        statistic_values.update(points_within_bounds.iloc[:,-29:].max().add_prefix("max_"))
 
-    print("Statistics: {}".format(statistics))
-    print("Len: {}".format(len(points_within_raster)))
+    if verbose:
+        print("Within this bound, there are {} points.".format(len(points_within_bounds)))
 
-    return statistic_values, len(points_within_raster)
+    return statistic_values

@@ -18,14 +18,14 @@ from itertools import product, chain
 from rasterio.windows import Window
 
 from sample.data_analysis import calculate_raster_statistics, count_pixels_in_raster
-from sample.pitfall import calculate_point_statistics_from_raster
+from sample.pitfall import calculate_point_statistics_within_bounds
 from sample.helpers import sort_alphanumerically
 
 import matplotlib.pyplot as plt
 import numpy as np
 from alive_progress import alive_bar
 from sample.data_analysis import calculate_array_statistics, count_proportions_in_array
-from sample.pitfall import calculate_point_statistics_from_raster_v2
+from sample.pitfall import calculate_point_statistics_within_bounds
 
 # Define constants
 TOTAL_NUM_OF_TRAPS = 135
@@ -127,7 +127,7 @@ def main():
                 tile_height = tile_size_y
             )
 
-            bounds, result_points, num_points = get_virtual_tile_point_date(
+            bounds, result_points = get_virtual_tile_point_date(
                 col_off = col_off,
                 row_off = row_off,
                 raster = raster,
@@ -135,136 +135,15 @@ def main():
                 tile_height = tile_size_y
             )
 
-            if result == False or num_points == 0:
+            print(result_points)
+            if result == False or not result_points:
                 continue
 
-            found_traps = {
-                "Number of traps": num_points
-            }
-
-            combined = {**bounds, **found_traps, **result, **result_points}
+            combined = {**bounds, **result, **result_points}
 
             data_table = data_table.append(combined, ignore_index = True)
 
         data_table.to_csv(args.output)
-
-        # names = ['left', 'right', 'top', 'bottom']
-
-        # id_dict = {
-        #     "ID": data_table.index + 1
-        # }
-
-        # bounding_box_dict = dict(zip(names, bounding_box))
-        # statistics = {**id_dict, **bounding_box_dict, **statistics}
-
-        # res, num_points = calculate_point_statistics_from_raster_v2(
-        #     bounding_box,
-        #     point_csv_fpath = "data/raw/pitfall_TER.csv"
-        # )
-
-        # total_points_encountered += num_points
-        
-        # num_points_dict = {
-        #     'number of traps': num_points
-        # }
-
-        # if res:
-        #     statistics = {**statistics, **num_points_dict, **res}
-        #     data_table = data_table.append(statistics, ignore_index=True)
-
-        # data_table.to_csv(args.output)
-
-    # with alive_bar(tiles_x * tiles_y * raster.count) as bar:
-    #     for tile_x in range(0, tiles_x):
-    #         for tile_y in range(0, tiles_y):
-    #             tile_id += 1
-
-    #             # Create empty dictionary for statistics
-    #             statistics = {}
-
-    #             # Loop through all bands for this chunk
-    #             for band_no in range(16, 17):
-    #                 # Add +1 to the progress bar
-    #                 bar()
-    #                 time.sleep(0.001)
-
-    #                 # for col_off, row_off in offsets:
-    #                     #     window = Window(col_off=col_off, row_off=row_off, width=tile_size_x, height=tile_size_y)
-    #                     #     data = src.read(boundless=True, window=window, fill_value=fill_value)
-    #                     #     print(data.shape)
-    #                 # print(offsets)
-
-    #                 print("(x1, y1) - (x2, y2) = ({},{}) - ({},{})".format(
-    #                     (tile_x * tile_size_x),
-    #                     (tile_y * tile_size_y),
-    #                     ((tile_x + 1) * tile_size_x),
-    #                     ((tile_y + 1) * tile_size_y)
-    #                 ))
-
-    #                 # Read the raster data for specific virtual tile
-    #                 tile = raster.read(band_no)[
-    #                     (tile_x * tile_size_x):((tile_x + 1) * tile_size_x),
-    #                     (tile_y * tile_size_y):((tile_y + 1) * tile_size_y)
-    #                 ]
-
-    #                 print("Shape: {}".format(raster.read(band_no).shape))
-
-    #                 if np.all(tile == np.nan):
-    #                     print("Tile ({},{}) only contains NaN values.".format(tile_x, tile_y))
-    #                     continue
-
-    #                 # For the land use band, count proportions instad of array statistics
-    #                 if band_no == args.land_use_band:
-    #                     props = count_proportions_in_array(tile, "data/raw/classes.txt")
-    #                     statistics = {**props, **statistics}
-
-    #                     plt.imshow(tile)
-    #                     plt.show()
-
-
-    #                 if np.all(tile < -10_000_000):
-    #                     continue
-
-    #                 tile_statistics = calculate_array_statistics(tile)
-    #                 temp = "band {} - ".format(band_no)
-
-    #                 if tile_statistics:
-    #                     tile_statistics_named = {temp + str(key): val for key, val in tile_statistics.items()}
-
-    #                 statistics = {**statistics, **tile_statistics_named}
-
-    #             bounding_box = [
-    #                 int(raster.bounds[0] + tile_x * coords_size_x),
-    #                 int(raster.bounds[0] + tile_x * coords_size_x + coords_size_x),
-    #                 int(raster.bounds[1] + tile_y * coords_size_y),
-    #                 int(raster.bounds[1] + tile_y * coords_size_y + coords_size_y),
-    #             ]
-
-    #             names = ['left', 'right', 'top', 'bottom']
-
-    #             id_dict = {
-    #                 "ID": data_table.index + 1
-    #             }
-
-    #             bounding_box_dict = dict(zip(names, bounding_box))
-    #             statistics = {**id_dict, **bounding_box_dict, **statistics}
-
-    #             res, num_points = calculate_point_statistics_from_raster_v2(
-    #                 bounding_box,
-    #                 point_csv_fpath = "data/raw/pitfall_TER.csv"
-    #             )
-
-    #             total_points_encountered += num_points
-                
-    #             num_points_dict = {
-    #                 'number of traps': num_points
-    #             }
-
-    #             if res:
-    #                 statistics = {**statistics, **num_points_dict, **res}
-    #                 data_table = data_table.append(statistics, ignore_index=True)
-
-    #             data_table.to_csv(args.output)
 
     assert total_points_encountered == TOTAL_NUM_OF_TRAPS, "Only {} points out of {} points".format(
         total_points_encountered, TOTAL_NUM_OF_TRAPS
@@ -291,10 +170,10 @@ def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height, 
     # Loop through all bands for the tile
     for band_no in range(1, raster.count):
         # Read band data
-        band_data = raster.read(band_no, boundless = False, window = window, fill_value = 0)
+        band_data = raster.read(band_no, boundless = False, window = window, fill_value = np.NaN)
 
         # If all values in the band are NaN, skip this tile
-        if np.all(band_data == np.nan):
+        if np.isnan(band_data).all():
             if verbose:
                 print("Tile ({},{}) only contains NaN values.".format(col_off, row_off))
             return False
@@ -357,7 +236,7 @@ def get_virtual_tile_point_date(raster, col_off, row_off, tile_width, tile_heigh
         int(raster.bounds[1] + (row_off / tile_height) * coords_size_y + coords_size_y),
     ]
 
-    result, num_points = calculate_point_statistics_from_raster_v2(
+    result = calculate_point_statistics_within_bounds(
         bounding_box,
         point_csv_fpath = "data/raw/pitfall_TER.csv"
     )
@@ -365,7 +244,7 @@ def get_virtual_tile_point_date(raster, col_off, row_off, tile_width, tile_heigh
     names = ['left', 'right', 'top', 'bottom']
     bounding_box_dict = dict(zip(names, bounding_box))
 
-    return bounding_box_dict, result, num_points
+    return bounding_box_dict, result
 
 if __name__ == '__main__':
     main()
