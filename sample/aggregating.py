@@ -241,7 +241,7 @@ def get_virtual_tile_point_date(raster, col_off, row_off, tile_width, tile_heigh
         point_csv_fpath = "data/raw/pitfall_TER.csv"
     )
 
-    names = ['left', 'right', 'top', 'bottom']
+    names = ['x1', 'x2', 'y1', 'y2']
     bounding_box_dict = dict(zip(names, bounding_box))
 
     return bounding_box_dict, result
