@@ -1,31 +1,16 @@
 import argparse
-import os
-import re
 import math
 
 import pandas as pd
-
-from shapely.geometry import Point, point
-from geopandas import GeoDataFrame
-
-from tqdm import tqdm
-
-import time
+import numpy as np
 
 import rasterio as rio
-from osgeo import gdal
 from itertools import product, chain
 from rasterio.windows import Window
-
-from sample.data_analysis import calculate_raster_statistics, count_pixels_in_raster
-from sample.pitfall import calculate_point_statistics_within_bounds
-from sample.helpers import sort_alphanumerically
-
-import matplotlib.pyplot as plt
-import numpy as np
 from alive_progress import alive_bar
-from sample.data_analysis import calculate_array_statistics, count_proportions_in_array
+
 from sample.pitfall import calculate_point_statistics_within_bounds
+from sample.data_analysis import calculate_array_statistics, count_proportions_in_array
 
 # Define constants
 TOTAL_NUM_OF_TRAPS = 135
