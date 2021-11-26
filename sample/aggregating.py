@@ -80,18 +80,17 @@ def main():
     # Create the tile offsets
     offsets = product(range(0, raster.meta['width'], tile_size_x), range(0, raster.meta['height'], tile_size_y))
 
-    # Set variable for fille values
-    fill_value = 0
-
     # Calculate number of tiles necessary
     tiles_x = math.ceil(raster.width / tile_size_x)
     tiles_y = math.ceil(raster.height / tile_size_y)
 
+    # Calculate total number of tiles
     total_num_tiles = (tiles_x * tiles_y)
 
-    print("You will have {} x {} = {} tiles in total.".format(
-        tiles_x, tiles_y, total_num_tiles
-    ))
+    if args.verbose:
+        print("You will have {} x {} = {} tiles in total.".format(
+            tiles_x, tiles_y, total_num_tiles
+        ))
 
     # Create counter variable for the amount of points (= traps) found, to verify its equal to total number of points
     total_points_encountered = 0
@@ -136,7 +135,21 @@ def main():
 
     data_table.to_csv(args.output)
 
-def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height, land_use_band: int = 16, verbose = True) -> pd.Series:
+def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height, land_use_band: int = 16, verbose = True) -> dict:
+    """Creates a dictionary with statistic values for a specified tile in a raster.
+
+    Args:
+        col_off (int): Column offset.   
+        row_off (int): Row offset.
+        raster ([type]): Raster.
+        tile_width (int): Tile width.
+        tile_height (int): Tile width. 
+        land_use_band (int, optional): Raster band with land use classes. Defaults to 16.
+        verbose (bool, optional): Verbosity. Defaults to True.
+
+    Returns:
+        dict: Statistics.
+    """
     # Set window
     window = Window(col_off = col_off, row_off = row_off, width = tile_width, height = tile_height)
 
@@ -146,14 +159,8 @@ def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height, 
     # Create empty dictionary for band statistics
     statistics = {}
 
-    # Create a range for the bands to loop through, starting with the land use band
-    band_order = chain(
-        range(land_use_band, raster.count),
-        range(1, land_use_band + 1)
-    )
-
     # Loop through all bands for the tile
-    for band_no in range(1, raster.count):
+    for band_no in range(1, raster.count + 1):
         # Read band data
         band_data = raster.read(band_no, boundless = False, window = window, fill_value = np.NaN)
 
