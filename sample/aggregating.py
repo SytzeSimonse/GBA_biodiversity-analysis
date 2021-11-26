@@ -1,5 +1,6 @@
 import argparse
 import math
+import os
 
 import pandas as pd
 import numpy as np
@@ -23,16 +24,19 @@ def main():
     ## INPUT
     parser.add_argument('-r', '--raster',
         type = str,
-        help='Filepath to raster',
-        default='data/raw/combined.tif'
+        help = 'Filepath to raster',
+        default = 'data/raw/combined.tif'
     )
 
-    ## INPUT
+    ## DIMENSIONS
     parser.add_argument('-d', '--dimension',
-        type = str,
-        help='Dimension of tiles (in metres)',
-        default=4000
+        nargs = '+',
+        help = 'Dimension of tiles (in metres)',
+        default = 4000,
+        required = True
     )
+
+    # parser.add_argument('-l','--list', nargs='+', help='<Required> Set flag', required=True)
 
     ## OUTPUT
     parser.add_argument('-o', '--output',
@@ -69,71 +73,75 @@ def main():
 
     # Open the raster
     raster = rio.open(args.raster)
-    
-    # Get raster cell sizes
-    cell_size_x, cell_size_y = raster.res
 
-    # Calculate tile size
-    tile_size_x = int((int(args.dimension) / cell_size_x))
-    tile_size_y = int((int(args.dimension) / cell_size_y))
+    # Loop through all dimensions
+    for dimension in args.dimension:
+        dimension = int(dimension)
 
-    # Create the tile offsets
-    offsets = product(range(0, raster.meta['width'], tile_size_x), range(0, raster.meta['height'], tile_size_y))
+        # Get raster cell sizes
+        cell_size_x, cell_size_y = raster.res
 
-    # Calculate number of tiles necessary
-    tiles_x = math.ceil(raster.width / tile_size_x)
-    tiles_y = math.ceil(raster.height / tile_size_y)
+        # Calculate tile size
+        tile_size_x = int(dimension / cell_size_x)
+        tile_size_y = int(dimension / cell_size_y)
 
-    # Calculate total number of tiles
-    total_num_tiles = (tiles_x * tiles_y)
+        # Create the tile offsets
+        offsets = product(range(0, raster.meta['width'], tile_size_x), range(0, raster.meta['height'], tile_size_y))
 
-    if args.verbose:
-        print("You will have {} x {} = {} tiles in total.".format(
-            tiles_x, tiles_y, total_num_tiles
-        ))
+        # Calculate number of tiles necessary
+        tiles_x = math.ceil(raster.width / tile_size_x)
+        tiles_y = math.ceil(raster.height / tile_size_y)
 
-    # Create counter variable for the amount of points (= traps) found, to verify its equal to total number of points
-    total_points_encountered = 0
+        # Calculate total number of tiles
+        total_num_tiles = (tiles_x * tiles_y)
 
-    # Create empty Pandas DataFrame for storing our aggregated data
-    data_table = pd.DataFrame()
+        if args.verbose:
+            print("You will have {} x {} = {} tiles in total.".format(
+                tiles_x, tiles_y, total_num_tiles
+            ))
 
-    with alive_bar(total_num_tiles) as bar:
-        for index, (col_off, row_off) in enumerate(offsets):
+        # Create counter variable for the amount of points (= traps) found, to verify its equal to total number of points
+        total_points_encountered = 0
 
-            bar()
+        # Create empty Pandas DataFrame for storing our aggregated data
+        data_table = pd.DataFrame()
 
-            result = create_virtual_tile_data(
-                col_off = col_off,
-                row_off = row_off,
-                raster = raster,
-                tile_width = tile_size_x,
-                tile_height = tile_size_y
-            )
+        with alive_bar(total_num_tiles) as bar:
+            for index, (col_off, row_off) in enumerate(offsets):
+                bar()
 
-            bounds, result_points = get_virtual_tile_point_date(
-                col_off = col_off,
-                row_off = row_off,
-                raster = raster,
-                tile_width = tile_size_x,
-                tile_height = tile_size_y
-            )
+                result = create_virtual_tile_data(
+                    col_off = col_off,
+                    row_off = row_off,
+                    raster = raster,
+                    tile_width = tile_size_x,
+                    tile_height = tile_size_y
+                )
 
-            print(result_points)
-            if result == False or not result_points:
-                continue
+                bounds, result_points = get_virtual_tile_point_date(
+                    col_off = col_off,
+                    row_off = row_off,
+                    raster = raster,
+                    tile_width = tile_size_x,
+                    tile_height = tile_size_y
+                )
 
-            combined = {**bounds, **result, **result_points}
+                # If the result returns False or if there are no points found, continue
+                if result == False or not result_points:
+                    continue
 
-            data_table = data_table.append(combined, ignore_index = True)
+                # Combine the dictionaries into single dictionary
+                combined = {**bounds, **result, **result_points}
 
-        data_table.to_csv(args.output)
+                # Add dictionary as row to data table
+                data_table = data_table.append(combined, ignore_index = True)
 
-    assert total_points_encountered == TOTAL_NUM_OF_TRAPS, "Only {} points out of {} points".format(
-        total_points_encountered, TOTAL_NUM_OF_TRAPS
-    )
+        # assert total_points_encountered == TOTAL_NUM_OF_TRAPS, "Only {} points out of {} points".format(
+        #     total_points_encountered, TOTAL_NUM_OF_TRAPS
+        # )
 
-    data_table.to_csv(args.output)
+        csv_fpath = os.path.join(args.output, "dimension_{}.csv".format(dimension))
+        data_table.to_csv(csv_fpath)
 
 def create_virtual_tile_data(col_off, row_off, raster, tile_width, tile_height, land_use_band: int = 16, verbose = True) -> dict:
     """Creates a dictionary with statistic values for a specified tile in a raster.
