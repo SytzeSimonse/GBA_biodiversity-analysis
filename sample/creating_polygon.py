@@ -32,23 +32,25 @@ def main():
 
     args = parser.parse_args()
 
+    # Read CSV file into Pandas DataFrame
     data_table = pd.read_csv(args.data)
 
-    left = data_table.iloc[args.index:,]["left"].values[0]
-    right = data_table.iloc[args.index:,]["right"].values[0]
-    top = data_table.iloc[args.index:,]["top"].values[0]
-    bottom = data_table.iloc[args.index:,]["bottom"].values[0]
+    # Extract bounds from row with specified index
+    left = data_table.iloc[args.index:,]["x1"].values[0]
+    right = data_table.iloc[args.index:,]["x2"].values[0]
+    top = data_table.iloc[args.index:,]["y1"].values[0]
+    bottom = data_table.iloc[args.index:,]["y2"].values[0]
 
+    # Create points for the polygon
     p1 = [left, top]
     p2 = [right, top]
     p3 = [right, bottom]
     p4 = [left, bottom]
 
-    # Here's an example Shapely geometry
+    # Create Shapely polygon
     poly = Polygon([p1, p2, p3, p4])
 
-    # Here's an example Shapely geometry
-    # Define a polygon feature geometry with one attribute
+    # Define schema
     schema = {
         'geometry': 'Polygon',
         'properties': {'id': 'int'},
