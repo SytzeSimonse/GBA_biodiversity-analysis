@@ -18,10 +18,10 @@ This script is intended to be used for tiling multiband raster data. Requirement
 
 The package offers four commands you can use:
 
-* `aggregate`
-* `name-bands`
-* `spectral-heterogeneity`
-* `create-polygon`
+* ``aggregate``
+* ``name-bands``
+* ``spectral-heterogeneity``
+* ``create-polygon``
 
 In the subsection below, the usage of each command is explained. 
 You can also always run `--help` for any of the commands.
@@ -42,7 +42,7 @@ The format of the LUT should be as follows (example):
     3=other_crops
     4=trees
     ...
-    
+
 ::
 
 The dimensions to aggregate the data over can also be specified, and should be provided as a list of integers.
