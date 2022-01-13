@@ -11,7 +11,8 @@ setup(
         'pandas',
         'rasterstats',
         'matplotlib',
-        'gdal'
+        'gdal',
+        'alive_progress'
     ],
     entry_points={
         'console_scripts': [
