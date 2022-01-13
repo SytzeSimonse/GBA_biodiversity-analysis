@@ -35,12 +35,14 @@ Furthermore, a look-up table (LUT) with the land use classes should be provided 
 The format of the LUT should be as follows (example):
 
 ::
+
     0=clouds
     1=urban
     2=bare_soil
     3=other_crops
     4=trees
     ...
+    
 ::
 
 The dimensions to aggregate the data over can also be specified, and should be provided as a list of integers.
